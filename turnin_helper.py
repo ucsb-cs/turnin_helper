@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, re, sys
+import os, re, smtplib, sys
 from optparse import OptionParser, OptionGroup
 
 VERSION = '0.1'
@@ -117,6 +117,50 @@ def make(work_dir, make_dir, makefile, target, submit_list):
         else:
             os.system(make_cmd % (submit_dir, make_log))
 
+def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
+    def append_at_cs(email):
+        if '@' not in email:
+            return email + '@cs.ucsb.edu'
+        return email
+
+    # Fix up
+    from_email = append_at_cs(from_email)
+    for i in range(len(bcc)):
+        bcc[i] = append_at_cs(bcc[i])
+   
+    # Make connection
+    smtp = smtplib.SMTP()
+    smtp.connect('localhost')
+
+    # Get Generic Message
+    generic_grade = ''
+    generic = os.path.join(work_dir, 'GRADE')
+    if not os.path.isfile(generic):
+        if not FORCE:
+            if not verify(' '.join(['There is no generic GRADE file, are you',
+                                    'sure you want to send emails?'])):
+                return
+    else:
+        generic_grade = open(generic).read().strip()
+
+    user_re = re.compile('(\w+)(-(\d)+)?')
+    for submit in submit_list:
+        user_grade = os.path.join(work_dir, submit, 'GRADE')
+        if not os.path.isfile(user_grade):
+            print 'No GRADE file for %s' % submit
+            continue
+        grade = open(user_grade).read().strip()
+        
+        user_email = append_at_cs(user_re.match(submit).group(1))
+        to_list = [user_email] + bcc
+        
+        to = 'To: %s' % user_email
+        subject = 'Subject: %s Grade' % os.path.basename(proj_dir)
+        msg = '%s\n%s\n\n%s\n\n%s' % (to, subject, grade, generic_grade)
+        smtp.sendmail(from_email, to_list, msg)
+    
+    smtp.quit()
+
 def purge_files(work_dir, submit_list):
     """Deletes directories with submit name in work_dir"""
     if not os.path.isdir(work_dir):
@@ -175,6 +219,12 @@ confirmation of actions and of course making the script as portable as possible.
                                      'submission (default: %default)']))
     parser.add_option('-m', '--make', action='store_true', default=False,
                       help='run make for each user (default: %default)')
+    parser.add_option('--email', metavar='FROM', default=False,
+                      help=' '.join(['email grades to students. The email is',
+                                     'constructed from a GRADE file in each',
+                                     'student\'s extract folder, plus a',
+                                     'generic grade file in the root of the',
+                                     'working directory.']))
     parser.add_option('--test-function', metavar='FUNC',
                       help=' '.join(['if specified this is a python function',
                                      'to call from the directory created for',
@@ -190,11 +240,13 @@ confirmation of actions and of course making the script as portable as possible.
                      help=' '.join(['directory within submission to run make',
                                     '(default: %default)']))
     group.add_option('--makefile', metavar='FILE',
-                     help=' '.join(['relative or absolute path to the makefile',
-                                    'to use with make (default: student\'s',
-                                    'submitted makefile)']))
+                     help=' '.join(['relative or absolute path to the',
+                                    'makefile to use with make (default:'
+                                    'student\'s submitted makefile)']))
     group.add_option('--target', metavar='TARGET',
                      help='make target to call')
+    group.add_option('--bcc', metavar='EMAIL', action='append',
+                     help='email address to bcc - can list multiple times')
     group.add_option('--extension', metavar='EXT', default='tar.Z',
                      help='extension of submitted files (default: %default)')
     group.add_option('-W', '--no-warn', action='store_true', default=False,
@@ -217,7 +269,7 @@ confirmation of actions and of course making the script as portable as possible.
         FORCE = True
 
     # Verify supplied paths
-    proj_dir = os.path.join(os.getcwd(), args[0])
+    proj_dir = os.path.join(os.getcwd(), args[0]).rstrip('/')
     if not os.path.isdir(proj_dir):
         exit_error('proj_dir does not exist' % proj_dir)
     elif not os.path.isfile(os.path.join(proj_dir, 'LOGFILE')):
@@ -237,6 +289,9 @@ confirmation of actions and of course making the script as portable as possible.
             warning('Using student supplied makefiles')
             makefile = None
         make(work_dir, options.make_dir, makefile, options.target, submit_list)
+    if options.email:
+        email_grades(proj_dir, work_dir, options.email, options.bcc,
+                     submit_list)
     if options.purge:
         purge_files(work_dir, submit_list)
     if options.test_function:
