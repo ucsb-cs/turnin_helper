@@ -17,7 +17,7 @@ QUIT = ['quit', 'q']
 """
 
 #==== Custom Test Function
-def calci_test():
+def calci_test(args):
     """Custom test function for CS160 Proj0 Grading
     
     When turnin_helper is invoked with the argument --test-function=calci_test
@@ -25,16 +25,43 @@ def calci_test():
     function python changes directories to the base of the extracted files
     for the submission.
     """
-    print "Testing: %s" % os.path.basename(os.getcwd())
 
-    tests_dir = '/home/bryce/src/TURNIN/TESTS/'
-    for test in os.listdir(tests_dir):
+    """
+    os.system('diff -u ../../calci.cpp calci/calci.cpp > calci.diff')
+    return
+    """
+
+    proj = os.path.basename(os.getcwd())
+    if args and proj not in args:
+        return
+
+    print "Testing: %s" % proj
+
+    tests_dir = '../../TESTS/'
+    os.system('rm -f line_numbers')
+
+    for test in sorted(os.listdir(tests_dir)):
         input = os.path.join(tests_dir, test)
+        if not os.path.isfile(input):
+            continue
         stdout = 'stdout-%s' % test
         stderr = 'stderr-%s' % test
-        os.system('calci/calci < %s > %s 2> %s' % (input, stdout, stderr))
-        if 'valid' in test:
-            os.system('dot -Tps %s | ps2pdf - > %s' % (stdout, '%s.pdf' % test))
+        ret = os.system('calci/calci < %s > %s 2> %s' % (input, stdout, stderr))
+        if ret and not 'bad' in test:
+            print '\tFailed %s' % test
+            last = open(stdout).readlines()[-1]
+            print '\t\t %s' % last,
+        elif  not ret and 'bad' in test:
+            print '\tFailed %s' % test
+        elif 'valid' in test:
+            ret = os.system('dot -Tps %s > %s' % (stdout, '%s.ps' % test))
+            if ret: print ret
+        elif 'bad' in test:
+            os.system('echo %s >> line_numbers' % stdout)
+            os.system('tail -n 1 %s >> line_numbers' % stdout)
+            os.remove(stdout)
+        if os.path.getsize(stderr) == 0:
+            os.remove(stderr)
 #=====
 
 def exit_error(msg):
@@ -73,7 +100,7 @@ def get_latest_turnin_list(proj_dir, extension):
     for user, submit_count in unique_users.items():
         extra = '-%d' % submit_count if submit_count > 0 else ''
         latest_submissions.append('%s%s' % (user, extra))
-    return latest_submissions
+    return sorted(latest_submissions)
 
 def extract_submissions(proj_dir, work_dir, extension, submit_list):
     """Unpacks all files passed in as a list here"""
@@ -185,7 +212,7 @@ def purge_files(work_dir, submit_list):
                 return
         os.rmdir(work_dir)
 
-def run_test_function(work_dir, test_function, submit_list):
+def run_test_function(work_dir, test_function, submit_list, args):
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist. Extract first')
 
@@ -194,7 +221,7 @@ def run_test_function(work_dir, test_function, submit_list):
 
     for submit in submit_list:
         os.chdir(os.path.join(work_dir, submit))
-        globals()[test_function]()
+        globals()[test_function](args)
 
 
 if __name__ == '__main__':
@@ -260,8 +287,6 @@ confirmation of actions and of course making the script as portable as possible.
     options, args = parser.parse_args()
     if len(args) == 0:
         parser.error('Must provide turnin_directory')
-    elif len(args) > 1:
-        parser.error('Too many arguments')
 
     if options.no_warn:
         DISPLAY_WARNINGS = False
@@ -295,4 +320,5 @@ confirmation of actions and of course making the script as portable as possible.
     if options.purge:
         purge_files(work_dir, submit_list)
     if options.test_function:
-        run_test_function(work_dir, options.test_function, submit_list)
+        run_test_function(work_dir, options.test_function, submit_list,
+                          args[1:])
