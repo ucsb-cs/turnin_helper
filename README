@@ -1,45 +1,71 @@
 ------------------------------------------------
-Example Usage (lines folled by $ are commands)
+Example Usage
 ------------------------------------------------
 
 See help information:
-$ ./turnin_helper --help
+./turnin_helper.py --help
 
 Extract sample project(s) to current folder by default:
-./turnin_helper -x SAMPLE_PROJ
+./turnin_helper.py -x SAMPLE_PROJ
 	Notice the addition of the bboe-1 folder (most recent bboe submission)
 	Notice the extract_log file added inside this folder
 
 Extract sample project(s) to "working" directory
-./turnin_helper -x SAMPLE_PROJ --work-dir=working
+./turnin_helper.py -x SAMPLE_PROJ --work-dir=working
 	Must answer yes to the confirmation question
 
 Compile already extracted project(s) in "working" directory
-./turnin_helper -m SAMPLE_PROJ --work-dir=working
+./turnin_helper.py -m SAMPLE_PROJ --work-dir=working
 	Note the addition of the make_log file inside the project folder(s)
-	Notice: running student submitted makefiles can be dangerous as they can
-	do something like `rm -rf ~` which will delete everything in your
+	Notice: running student submitted makefiles can be dangerous as they
+	can do something like `rm -rf ~` which will delete everything in your
 	directory. I recommend not allowing students to make modifications to
 	the makefile and providing a known clean makefile via the --makefile
 	option.
 
 Clean up (delete) project(s) in "working" directory
-./turnin_helper --work-dir=working --purge SAMPLE_PROJ
+./turnin_helper.py --work-dir=working --purge SAMPLE_PROJ
 	Note that this will only delete folders and their contents which
 	correspond to the folders created via extraction. If the working folder
-	happens to be empty after all the project folders have been deleted then
-	a confirmation will appear asking if you'd like to delete the working
-	folder.
+	happens to be empty after all the project folders have been deleted
+	then a confirmation will appear asking if you'd like to delete the
+	working folder.
 
 Extract and run `make clean` on sample project(s) in "working" directory
-./turnin_helper -m SAMPLE_PROJ --work-dir=working --target=clean
+./turnin_helper.py -m SAMPLE_PROJ --work-dir=working --target=clean
 
 
 ------------------------------------------------
 Proceedure to batch email students their grades
 ------------------------------------------------
-Once a project has been extracted a grade emails can be sent to all the students
-in one simple proceedure. There are a couple of features here:
+Once a project has been extracted a grade emails can be sent to all the
+students in one simple proceedure. There are a couple of features here:
 
- - In each student's extraction directory a GRADE file can be placed. If exists
-   this student wil
+  - In each student's project directory a GRADE file can be created. If a
+    project has a GRADE file in it, when invoking the --email function that
+    student will be sent an email containing the contents of this file. Emails
+    are constructed from the student's username@cs.ucsb.edu. This might
+    potentially cause problems with CE and visiting students, but I'm not sure.
+    Conversely students without a GRADE file will not receive an email.
+  - In the working directory a generic GRADE file can be created. This will be
+    be appended to the individial message a student receives. Incredibly useful
+    for generic information about the project's grading.
+
+Example proceedure for emailing me (bboe) with the sample project:
+./turnin_helper.py -x SAMPLE_PROJ --work-dir=working
+echo "Generic info about SAMPLE_PROJ" > working/GRADE
+echo "BBOE specific info regarding SAMPLE_PROJ" > working/bboe-1/GRADE
+./turnin_helper.py --email=bboe SAMPLE_PROJ/ --work-dir=working
+
+The email I receive looks like:
+From: Bryce Boe <bboe@cs.ucsb.edu>
+Received: from csil.cs.ucsb.edu (localhost [127.0.0.1])
+	  by csil.cs.ucsb.edu (8.14.3/8.14.3) with ESMTP id n9F51GkM023424
+	  for <bboe@cs.ucsb.edu>; Wed, 14 Oct 2009 22:01:16 -0700
+Date: Wed, 14 Oct 2009 22:01:16 -0700
+To: bboe@cs.ucsb.edu
+Subject: SAMPLE_PROJ Grade
+
+BBOE specific info regarding SAMPLE_PROJ
+
+Generic info about SAMPLE_PROJ
