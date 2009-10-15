@@ -152,6 +152,8 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
 
     # Fix up
     from_email = append_at_cs(from_email)
+    if not bcc:
+        bcc = []
     for i in range(len(bcc)):
         bcc[i] = append_at_cs(bcc[i])
    
@@ -236,7 +238,8 @@ directories. Pushing through fatigue, Bryce's journey continued with the
 auto execution of certain commands. Upon realizing that more time was probably
 spent on this journey rather than the actual grading of the programs Bryce
 decided to make it all worthwhile. The journey again was extended to allow for
-confirmation of actions and of course making the script as portable as possible.
+confirmation of actions and of course making the script as portable as
+possible.
 
 """
     parser = OptionParser(usage=usage, description=description,
