@@ -81,7 +81,10 @@ def verify(msg):
 
 def get_latest_turnin_list(proj_dir, extension):
     """Builds a list of all the most recent submissions"""
-    submit_re = re.compile('(\w+)(-(\d)+)?.%s' % extension)
+    
+    # Intentionally doesn't handle names with hyphens (-) followed by numbers
+    submit_re = re.compile('([A-Za-z0-9_.]+([A-Za-z_.-]*))(-(\d)+)?.%s' %
+                           extension)
     submissions = [x for x in os.listdir(proj_dir) if extension in x]
     if not submissions:
         exit_error('No files in %s with extension %s' % (proj_dir, extension))
@@ -89,7 +92,11 @@ def get_latest_turnin_list(proj_dir, extension):
     # Build unique user submission list, with most recent count
     unique_users = {}
     for submission in submissions:
-        user, _, submit_count = submit_re.match(submission).groups()
+        try:
+            user, _, _, submit_count = submit_re.match(submission).groups()
+        except AttributeError:
+            sys.stderr.write('Warning: Failed to handle: %s\n' % submission)
+            
         submit_count = int(submit_count) if submit_count else 0
         if user in unique_users:
             unique_users[user] = max(unique_users[user], submit_count)
@@ -244,6 +251,8 @@ possible.
 """
     parser = OptionParser(usage=usage, description=description,
                           version='%%prog %s' % VERSION)
+    parser.add_option('-l', '--list', action='store_true', default=False,
+                      help='list found submissions (default: %default)')
     parser.add_option('-x', '--extract', action='store_true', default=False,
                       help=' '.join(['extract students\' most recent',
                                      'submission (default: %default)']))
@@ -306,6 +315,9 @@ possible.
     work_dir = os.path.join(os.getcwd(), options.work_dir)
     submit_list = get_latest_turnin_list(proj_dir, options.extension)
 
+    if options.list:
+        for user in submit_list:
+            print user
     if options.extract:
         extract_submissions(proj_dir, work_dir, options.extension, submit_list)
     if options.make:
