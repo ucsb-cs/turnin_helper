@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+
+"""Grading Script for automatically unpacking submissions created by turnin.
+
+Written By: Bryce Boe (bboe at cs)
+Date: 2009/01/27
+
+Last Update: 2014/04/18
+
+"""
+
 from __future__ import print_function
 import csv
 import os
 import pwd
 import re
+import shutil
 import smtplib
 import sys
 from optparse import OptionParser, OptionGroup
@@ -11,89 +22,53 @@ from optparse import OptionParser, OptionGroup
 __version__ = '0.2'
 DISPLAY_WARNINGS = True
 FORCE = False
-QUIT = ['quit', 'q']
 USER_RE = re.compile('(\w+)(-(\d)+)?')
-YES = ['yes', 'y', '1']
 
 
-"""Grading Script for automatically unpacking the newest turnins
-   Written By: Bryce Boe (bboe at cs)
-   Date: 2009/01/27
+def sample_test_function(args):
+    """A sample test function that creates a the student-specific grade file.
 
-   Last Update: 2014/04/18
-"""
-
-
-def calci_test(args):
-    """Custom test function for CS160 Proj0 Grading
-
-    When turnin_helper is invoked with the argument --test-function=calci_test
-    this function is called once for each submission. Prior to the call to this
-    function python changes directories to the base of the extracted files
-    for the submission.
-    """
+    When turnin_helper is invoked with the argument
+    --test-function=sample_test_function this function is called once for each
+    submission. Prior to calling this function python changes directories to
+    the base of the extracted files for the submission.
 
     """
-    os.system('diff -u ../../calci.cpp calci/calci.cpp > calci.diff')
-    return
-    """
-
-    proj = os.path.basename(os.getcwd())
-    if args and proj not in args:
-        return
-
-    print('Testing: {}'.format(proj))
-
-    tests_dir = '../../TESTS/'
-    os.system('rm -f line_numbers')
-
-    for test in sorted(os.listdir(tests_dir)):
-        test_input = os.path.join(tests_dir, test)
-        if not os.path.isfile(test_input):
-            continue
-        stdout = 'stdout-{}'.format(test)
-        stderr = 'stderr-{}'.format(test)
-        ret = os.system('calci/calci < {} > {} 2> {}'
-                        .format(test_input, stdout, stderr))
-        if ret and 'bad' not in test:
-            print('\tFailed {}'.format(test))
-            with open(stdout) as fp:
-                last = fp.readlines()[-1]
-            sys.stdout.write('\t\t {}'.format(last))
-        elif not ret and 'bad' in test:
-            print('\tFailed {}'.format(test))
-        elif 'valid' in test:
-            ret = os.system('dot -Tps {} > {}.ps'.format(stdout, test))
-            if ret:
-                print(ret)
-        elif 'bad' in test:
-            os.system('echo {} >> line_numbers'.format(stdout))
-            os.system('tail -n 1 {} >> line_numbers'.format(stdout))
-            os.remove(stdout)
-        if os.path.getsize(stderr) == 0:
-            os.remove(stderr)
+    with open('GRADE', 'w') as fp:
+        fp.write('The sample test function has executed.')
 
 
-def exit_error(msg):
-    print(msg)
+def exit_error(message):
+    """Output the message to stdout and exit with status code 1."""
+    print(message)
     sys.exit(1)
 
 
-def warning(msg):
+def warning(message):
+    """If warnings are to be shown, output message to stderr."""
     if DISPLAY_WARNINGS:
-        sys.stderr.write('Warning: {}\n'.format(msg))
+        sys.stderr.write('Warning: {}\n'.format(message))
 
 
-def verify(msg):
-    test_input = raw_input('{} '.format(msg)).lower()
-    if input in QUIT:
+def verify(prompt):
+    """Return whether or not the user accepted the prompt.
+
+    The prompt is skipped if `--force` was provided.
+    Exit the program if the user replies with a quit response.
+
+    """
+    if FORCE:
+        return True
+    sys.stdout.write('{}: '.format(prompt))
+    sys.stdout.flush()
+    response = sys.stdin.readline().strip().lower()
+    if response in ('quit', 'q'):
         exit_error('Aborted')
-    return test_input in YES
+    return response in ('yes', 'y', '1')
 
 
 def get_latest_turnin_list(proj_dir, extension):
-    """Builds a list of all the most recent submissions."""
-
+    """Return a list of all the most recent submissions."""
     # Intentionally doesn't handle names with hyphens (-) followed by numbers
     submit_re = re.compile('([A-Za-z0-9_.]+([A-Za-z_.-]*))(-(\d)+)?.{}'
                            .format(extension))
@@ -125,12 +100,10 @@ def get_latest_turnin_list(proj_dir, extension):
 
 
 def extract_submissions(proj_dir, work_dir, extension, submit_list):
-    """Unpacks all files passed in as a list here"""
+    """Extract all submissions in submit_list to work_dir."""
     if not os.path.isdir(work_dir):
-        if not FORCE:
-            if not verify('Are you sure you want to create {}?'
-                          .format(work_dir)):
-                exit_error('Aborted')
+        if not verify('Are you sure you want to create {}?'.format(work_dir)):
+            exit_error('Aborted')
         os.mkdir(work_dir)
 
     for submit in submit_list:
@@ -139,10 +112,9 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
         compressed = os.path.join(proj_dir, '{}.{}'
                                   .format(submit, extension))
         if os.path.isdir(extract_dir):
-            if not FORCE:
-                if not verify('Are you sure you want to overwrite {}?'
-                              .format(extract_dir)):
-                    continue
+            if not verify('Are you sure you want to overwrite {}?'
+                          .format(extract_dir)):
+                continue
         else:
             os.mkdir(extract_dir)
         extract_log = os.path.join(extract_dir, 'extract_log')
@@ -151,10 +123,10 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
 
 
 def make(work_dir, make_dir, makefile, target, submit_list):
+    """Run make using target for all submissions in submit_list."""
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist. Extract first')
 
-    """Runs make for each submission"""
     makefile = '-f {}'.format(makefile) if makefile else ''
     target = target if target else ''
     make_cmd = 'make {} -C {{}} {} > {{}}'.format(makefile, target)
@@ -171,17 +143,23 @@ def make(work_dir, make_dir, makefile, target, submit_list):
 
 
 def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
-    def append_at_cs(email):
-        if '@' not in email:
-            return email + '@cs.ucsb.edu'
-        return email
+    """Email all students in submit_list the contents of the GRADE files.
 
-    # Fix up
+    Students whose project directory does not contain a grade file will be
+    skipped.
+
+    The student's grade fill is concatenated with the projects grade file.
+
+    """
+    def append_at_cs(email):
+        return email if '@' in email else email + '@cs.ucsb.edu'
+
+    # Normalize email accounts
     from_email = append_at_cs(from_email)
-    if not bcc:
+    if bcc is None:
         bcc = []
-    for i in range(len(bcc)):
-        bcc[i] = append_at_cs(bcc[i])
+    else:
+        bcc = [append_at_cs(x) for x in bcc]
 
     # Make connection
     smtp = smtplib.SMTP()
@@ -191,10 +169,9 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
     generic_grade = ''
     generic = os.path.join(work_dir, 'GRADE')
     if not os.path.isfile(generic):
-        if not FORCE:
-            if not verify('There is no generic GRADE file, are you '
-                          'sure you want to send emails?'):
-                return
+        if not verify('There is no generic GRADE file, are you '
+                      'sure you want to send emails?'):
+            return
     else:
         with open(generic) as fp:
             generic_grade = fp.read().strip()
@@ -202,7 +179,7 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
     for submit in submit_list:
         user_grade = os.path.join(work_dir, submit, 'GRADE')
         if not os.path.isfile(user_grade):
-            print('No GRADE file for {}'.format(submit))
+            warning('No GRADE file for {}'.format(submit))
             continue
         with open(user_grade) as fp:
             grade = fp.read().strip()
@@ -217,44 +194,48 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
 
 
 def purge_files(work_dir, submit_list):
-    """Deletes directories with submit name in work_dir"""
+    """Remove directories in work_dir matching names in submit_list."""
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist')
         return
+    if not verify('Are you sure you want to delete user directories?'):
+        return
 
-    if not FORCE:
-        if not verify('Are you sure you want to delete user directories?'):
-            return
-
-    for user in submit_list:
-        user_dir = os.path.join(work_dir, user)
-        if os.path.isdir(user_dir):
-            print('Deleting: {}'.format(user))
-            os.system('rm -rf {}'.format(os.path.join(work_dir, user)))
+    for submit in submit_list:
+        submit_dir = os.path.join(work_dir, submit)
+        if os.path.isdir(submit_dir):
+            print('Deleting: {}'.format(submit))
+            shutil.rmtree(submit_dir)
         else:
-            warning('{} does not exist'.format(user_dir))
+            warning('{} does not exist'.format(submit_dir))
 
     if not os.listdir(work_dir):
-        if not FORCE:
-            if not verify('{} is empty. Do you want to delete?'
-                          .format(work_dir)):
-                return
+        if not verify('{} is empty. Do you want to delete?'.format(work_dir)):
+            return
         os.rmdir(work_dir)
 
 
 def run_test_function(work_dir, test_function, submit_list, args):
+    """Execute test_function for each submission in submit_list.
+
+    Change into the submission directory for each submission before the call.
+
+    """
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist. Extract first')
 
     if test_function not in globals():
         exit_error('Aborting: No function named {}'.format(test_function))
 
+    old_pwd = os.getcwd()
     for submit in submit_list:
         os.chdir(os.path.join(work_dir, submit))
         globals()[test_function](args)
+    os.chdir(old_pwd)
 
 
 def generate_csv(proj_dir, work_dir, submit_list):
+    """Create a csv containing the names and grade information."""
     csv_filename = os.path.join(work_dir,
                                 '{}.csv'.format(os.path.basename(proj_dir)))
     if os.path.exists(csv_filename):
@@ -264,7 +245,7 @@ def generate_csv(proj_dir, work_dir, submit_list):
     with open(csv_filename, 'w') as csv_file:
         writer = csv.writer(csv_file, delimiter=',', quotechar='"',
                             quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
+        writer.writerow(('First Name', 'Last Name', 'User Name', 'Grading'))
         for item in submit_list:
             username = USER_RE.match(item).group(1)
             name_parts = pwd.getpwnam(username).pw_gecos.split()
@@ -377,13 +358,13 @@ possible.
             warning('Using student supplied makefiles')
             makefile = None
         make(work_dir, options.make_dir, makefile, options.target, submit_list)
-    if options.email:
-        email_grades(proj_dir, work_dir, options.email, options.bcc,
-                     submit_list)
-    if options.purge:
-        purge_files(work_dir, submit_list)
     if options.test_function:
         run_test_function(work_dir, options.test_function, submit_list,
                           args[1:])
+    if options.email:
+        email_grades(proj_dir, work_dir, options.email, options.bcc,
+                     submit_list)
     if options.csv:
         generate_csv(proj_dir, work_dir, submit_list)
+    if options.purge:
+        purge_files(work_dir, submit_list)
