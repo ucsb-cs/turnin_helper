@@ -40,7 +40,7 @@ def sample_test_function(args):
     """
     passed = os.path.exists('some_proj')  # The file Make should produce
     with open('GRADE', 'w') as fp:
-        fp.write('Score: {}\n'.format(int(passed)))
+        fp.write('SCORE: {}\n'.format(int(passed)))
 
 
 def exit_error(message):
@@ -270,6 +270,8 @@ def generate_csv(proj_dir, work_dir, submit_list):
 
 
 if __name__ == '__main__':
+    print('Note: Please consider using https://submit.cs.ucsb.edu for future '
+          'assignments.\n')
     # Setup and configure options parser
     usage = 'Usage: %prog [options] PROJ_DIR'
     parser = OptionParser(usage=usage, version='%prog {}'.format(__version__))

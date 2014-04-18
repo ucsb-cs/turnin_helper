@@ -1,4 +1,15 @@
-## Example Usage
+# Submit.cs Recommendation
+
+This program was written in 2009 when `turnin` was the primary method for
+students to submit their assignments. As of 2013 an online submission system
+exists that is vastly superior in every way.
+
+https://submit.cs.ucsb.edu
+
+Please encourage your instructor to use this system even if you do not intend
+to use it for its testing capabilities.
+
+# Example Usage
 
 Note that for each of these examples, SAMPLE_PROJ is the directory where the
 student submissions are tarballed to. working is the directory selected for the
@@ -71,7 +82,7 @@ file is autoamtically produced.
 
 We can invoke the failure case by providing a make target that does not exist:
 
-    ./turnin_helper.py -xm  --target foo --test-function=sample_test_function SAMPLE_PROJ
+    ./turnin_helper.py -xm --target foo --test-function=sample_test_function SAMPLE_PROJ
 
 After running the above the contents of `bboe-1/GRADE` will be:
 
@@ -83,7 +94,7 @@ The contents of `bboe-1/make_log` will indicate why Make did not succeed:
 
 ### Extracting, making and running the test for success
 
-    ./turnin_helper.py -xm  --test-function=sample_test_function SAMPLE_PROJ
+    ./turnin_helper.py -xm --test-function=sample_test_function SAMPLE_PROJ
 
 After running the above the contents of `bboe-1/GRADE` will be:
 
