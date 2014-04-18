@@ -234,8 +234,14 @@ def run_test_function(work_dir, test_function, submit_list, args):
 
 def generate_csv(proj_dir, work_dir, submit_list):
     csv_filename = "./{}.csv".format(proj_dir.split("/"[-1])) 
+    if os.path.exists(filename):
+        if not verify('''Are you sure you want to clobber the pre-existing \
+csv file?'''):
+            return
+    csv_file = open(csv_filename, "w")
     writer = csv.writer(csv_filename, delimiter=",", quotechar='"', 
             quoting=csv.QUOTE_MINIMAL)
+    writer.writerow('Firstname,Lastname,Username,Grading'
     for username in submit_list:
         fullname = pwd.getpwnam(user).pw_gecos
         firstname = fullname.split()[0]
@@ -245,7 +251,9 @@ def generate_csv(proj_dir, work_dir, submit_list):
             print 'No GRADE file for %s' % submit
             continue
         grade = open(grade_path).read().strip()
-        grade = 
+        writer.writerow('{},{},{},{}'.format(firstname, lastname, username,
+            grading))
+    csv_file.close()
 
 
 if __name__ == '__main__':
