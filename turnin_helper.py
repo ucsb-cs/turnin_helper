@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, re, smtplib, sys, csv, pwd
+import os, re, smtplib, sys, csv, string, subprocess
 from optparse import OptionParser, OptionGroup
 
 VERSION = '0.1'
@@ -233,26 +233,32 @@ def run_test_function(work_dir, test_function, submit_list, args):
         globals()[test_function](args)
 
 def generate_csv(proj_dir, work_dir, submit_list):
-    csv_filename = "./{}.csv".format(proj_dir.split("/"[-1])) 
-    if os.path.exists(filename):
+    csv_filename = './{}.csv'.format(proj_dir.split('/')[-1]) 
+    if os.path.exists(csv_filename):
         if not verify('''Are you sure you want to clobber the pre-existing \
 csv file?'''):
             return
-    csv_file = open(csv_filename, "w")
-    writer = csv.writer(csv_filename, delimiter=",", quotechar='"', 
+    csv_file = open(csv_filename, 'w')
+    writer = csv.writer(csv_file, delimiter=',', quotechar='"', 
             quoting=csv.QUOTE_MINIMAL)
-    writer.writerow('Firstname,Lastname,Username,Grading'
-    for username in submit_list:
-        fullname = pwd.getpwnam(user).pw_gecos
+    writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
+    for item in submit_list:
+        username = item if '-' not in item else item.split('-')[0]
+        if any(char for char in username if char not in string.letters +
+                string.digits):
+            #A security check here is important prior to the shell command
+            exit_error('Security check for alphanumeric usernames failed. \
+Exiting')
+        fullname = subprocess.Popen("getent passwd {} | cut -d ':' -f 5".format(
+            username), stdout=subprocess.PIPE, shell=True).stdout.read()
         firstname = fullname.split()[0]
         lastname = fullname.split()[-1]
-        grade_path = os.path.join(work_dir, submit, 'GRADE')
-        if not os.path.isfile(grade_filepath):
-            print 'No GRADE file for %s' % submit
-            continue
-        grade = open(grade_path).read().strip()
-        writer.writerow('{},{},{},{}'.format(firstname, lastname, username,
-            grading))
+        grade_path = os.path.join(work_dir, username, 'GRADE')
+        if not os.path.isfile(grade_path):
+            grading=""
+        else:
+            grade = open(grade_path).read().strip()
+        writer.writerow((firstname, lastname, username, grading))
     csv_file.close()
 
 
@@ -336,7 +342,7 @@ student's work-dir subfolder''')
     # Verify supplied paths
     proj_dir = os.path.join(os.getcwd(), args[0]).rstrip('/')
     if not os.path.isdir(proj_dir):
-        exit_error('proj_dir does not exist' % proj_dir)
+        exit_error('%s does not exist' % proj_dir)
     elif not os.path.isfile(os.path.join(proj_dir, 'LOGFILE')):
         warning('proj_dir does not appear to be valid. Reason: No LOGFILE')
 
@@ -366,4 +372,4 @@ student's work-dir subfolder''')
         run_test_function(work_dir, options.test_function, submit_list,
                           args[1:])
     if options.csv:
-        generate_csg(proj_dir, work_dir, submit_list)
+        generate_csv(proj_dir, work_dir, submit_list)
