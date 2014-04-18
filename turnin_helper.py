@@ -16,6 +16,7 @@ import pwd
 import re
 import shutil
 import smtplib
+import subprocess
 import sys
 from optparse import OptionParser, OptionGroup
 
@@ -33,14 +34,18 @@ def sample_test_function(args):
     submission. Prior to calling this function python changes directories to
     the base of the extracted files for the submission.
 
+    This function in particular simply assigns a score based on whether or not
+    the Make process was successful.
+
     """
+    passed = os.path.exists('some_proj')  # The file Make should produce
     with open('GRADE', 'w') as fp:
-        fp.write('The sample test function has executed.')
+        fp.write('Score: {}\n'.format(int(passed)))
 
 
 def exit_error(message):
     """Output the message to stdout and exit with status code 1."""
-    print(message)
+    print('Abort: {}'.format(message))
     sys.exit(1)
 
 
@@ -63,7 +68,7 @@ def verify(prompt):
     sys.stdout.flush()
     response = sys.stdin.readline().strip().lower()
     if response in ('quit', 'q'):
-        exit_error('Aborted')
+        exit_error('user requested quit')
     return response in ('yes', 'y', '1')
 
 
@@ -103,14 +108,13 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
     """Extract all submissions in submit_list to work_dir."""
     if not os.path.isdir(work_dir):
         if not verify('Are you sure you want to create {}?'.format(work_dir)):
-            exit_error('Aborted')
+            exit_error('nothing to do')
         os.mkdir(work_dir)
 
     for submit in submit_list:
         print('Unpacking: {}'.format(submit))
         extract_dir = os.path.join(work_dir, submit)
-        compressed = os.path.join(proj_dir, '{}.{}'
-                                  .format(submit, extension))
+        src = os.path.join(proj_dir, '{}.{}'.format(submit, extension))
         if os.path.isdir(extract_dir):
             if not verify('Are you sure you want to overwrite {}?'
                           .format(extract_dir)):
@@ -118,8 +122,10 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
         else:
             os.mkdir(extract_dir)
         extract_log = os.path.join(extract_dir, 'extract_log')
-        os.system('tar -xvzf {} -C {} > {}'.format(compressed, extract_dir,
-                                                   extract_log))
+        with open(extract_log, 'w') as fp:
+            if subprocess.call(['tar', '-xvzf', src, '-C', extract_dir],
+                               stdout=fp, stderr=fp) != 0:
+                exit_error('Extract failed on {}'.format(submit))
 
 
 def make(work_dir, make_dir, makefile, target, submit_list):
@@ -127,19 +133,21 @@ def make(work_dir, make_dir, makefile, target, submit_list):
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist. Extract first')
 
-    makefile = '-f {}'.format(makefile) if makefile else ''
-    target = target if target else ''
-    make_cmd = 'make {} -C {{}} {} > {{}}'.format(makefile, target)
-
+    args = ['make', '-C', None]  # args[2] will be replaced
+    if makefile:
+        args.extend(['-f', makefile])
+    if target:
+        args.append(target)
     for submit in submit_list:
-        print('Making: {}'.format(submit))
         submit_dir = os.path.join(work_dir, submit, make_dir)
-        make_log = os.path.join(work_dir, submit, 'make_log')
-
         if not os.path.isdir(submit_dir):
-            print('Cannot build: submit_dir does not exist')
-        else:
-            os.system(make_cmd.format(submit_dir, make_log))
+            print('Cannot build: {} does not exist'.format(submit_dir))
+            continue
+        print('Making: {}'.format(submit))
+        args[2] = submit_dir
+        with open(os.path.join(work_dir, submit, 'make_log'), 'w') as fp:
+            if subprocess.call(args, stdout=fp, stderr=fp) != 0:
+                warning('Make failed for {}'.format(submit))
 
 
 def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
@@ -196,7 +204,7 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
 def purge_files(work_dir, submit_list):
     """Remove directories in work_dir matching names in submit_list."""
     if not os.path.isdir(work_dir):
-        exit_error('work_dir does not exist')
+        exit_error('work_dir does not exist. Nothing to do.')
         return
     if not verify('Are you sure you want to delete user directories?'):
         return
@@ -225,10 +233,11 @@ def run_test_function(work_dir, test_function, submit_list, args):
         exit_error('work_dir does not exist. Extract first')
 
     if test_function not in globals():
-        exit_error('Aborting: No function named {}'.format(test_function))
+        exit_error('No function named {}'.format(test_function))
 
     old_pwd = os.getcwd()
     for submit in submit_list:
+        print('Testing {}'.format(submit))
         os.chdir(os.path.join(work_dir, submit))
         globals()[test_function](args)
     os.chdir(old_pwd)
@@ -341,7 +350,9 @@ if __name__ == '__main__':
             if not os.path.isfile(makefile):
                 exit_error('Makefile ({}) does not exist'.format(makefile))
         else:
-            warning('Using student supplied makefiles')
+            if not verify('Are you sure you want to use the students\' '
+                          'Makefiles?'):
+                exit_error('cannot run make')
             makefile = None
         make(work_dir, options.make_dir, makefile, options.target, submit_list)
     if options.test_function:
