@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import csv
 import os
 import pwd
@@ -18,7 +19,7 @@ QUIT = ['quit', 'q']
    Written By: Bryce Boe (bboe at cs)
    Date: 2009/01/27
 
-   Last Update: 2009/01/28
+   Last Update: 2014/04/18
 """
 
 
@@ -40,64 +41,64 @@ def calci_test(args):
     if args and proj not in args:
         return
 
-    print "Testing: %s" % proj
+    print('Testing: {}'.format(proj))
 
     tests_dir = '../../TESTS/'
     os.system('rm -f line_numbers')
 
     for test in sorted(os.listdir(tests_dir)):
-        input = os.path.join(tests_dir, test)
-        if not os.path.isfile(input):
+        test_input = os.path.join(tests_dir, test)
+        if not os.path.isfile(test_input):
             continue
-        stdout = 'stdout-%s' % test
-        stderr = 'stderr-%s' % test
-        ret = os.system('calci/calci < %s > %s 2> %s' %
-                        (input, stdout, stderr))
+        stdout = 'stdout-{}'.format(test)
+        stderr = 'stderr-{}'.format(test)
+        ret = os.system('calci/calci < {} > {} 2> {}'
+                        .format(test_input, stdout, stderr))
         if ret and 'bad' not in test:
-            print '\tFailed %s' % test
+            print('\tFailed {}'.format(test))
             last = open(stdout).readlines()[-1]
-            print '\t\t %s' % last,
+            sys.stdout.write('\t\t {}'.format(last))
         elif not ret and 'bad' in test:
-            print '\tFailed %s' % test
+            print('\tFailed {}'.format(test))
         elif 'valid' in test:
-            ret = os.system('dot -Tps %s > %s' % (stdout, '%s.ps' % test))
+            ret = os.system('dot -Tps {} > {}.ps'.format(stdout, test))
             if ret:
-                print ret
+                print(ret)
         elif 'bad' in test:
-            os.system('echo %s >> line_numbers' % stdout)
-            os.system('tail -n 1 %s >> line_numbers' % stdout)
+            os.system('echo {} >> line_numbers'.format(stdout))
+            os.system('tail -n 1 {} >> line_numbers'.format(stdout))
             os.remove(stdout)
         if os.path.getsize(stderr) == 0:
             os.remove(stderr)
 
 
 def exit_error(msg):
-    print msg
+    print(msg)
     sys.exit(1)
 
 
 def warning(msg):
     if DISPLAY_WARNINGS:
-        sys.stderr.write('Warning: %s\n' % msg)
+        sys.stderr.write('Warning: {}\n'.format(msg))
 
 
 def verify(msg):
-    input = raw_input('%s ' % msg).lower()
-    if input in YES:
-        return True
+    test_input = raw_input('{} '.format(msg)).lower()
     if input in QUIT:
         exit_error('Aborted')
+    return test_input in YES
 
 
 def get_latest_turnin_list(proj_dir, extension):
     """Builds a list of all the most recent submissions."""
 
     # Intentionally doesn't handle names with hyphens (-) followed by numbers
-    submit_re = re.compile('([A-Za-z0-9_.]+([A-Za-z_.-]*))(-(\d)+)?.%s' %
-                           extension)
+    submit_re = re.compile('([A-Za-z0-9_.]+([A-Za-z_.-]*))(-(\d)+)?.{}'
+                           .format(extension))
     submissions = [x for x in os.listdir(proj_dir) if extension in x]
     if not submissions:
-        exit_error('No files in %s with extension %s' % (proj_dir, extension))
+        exit_error('No files in {} with extension {}'
+                   .format(proj_dir, extension))
 
     # Build unique user submission list, with most recent count
     unique_users = {}
@@ -105,7 +106,8 @@ def get_latest_turnin_list(proj_dir, extension):
         try:
             user, _, _, submit_count = submit_re.match(submission).groups()
         except AttributeError:
-            sys.stderr.write('Warning: Failed to handle: %s\n' % submission)
+            sys.stderr.write('Warning: Failed to handle: {}\n'
+                             .format(submission))
 
         submit_count = int(submit_count) if submit_count else 0
         if user in unique_users:
@@ -115,8 +117,8 @@ def get_latest_turnin_list(proj_dir, extension):
 
     latest_submissions = []
     for user, submit_count in unique_users.items():
-        extra = '-%d' % submit_count if submit_count > 0 else ''
-        latest_submissions.append('%s%s' % (user, extra))
+        extra = '-{}'.format(submit_count) if submit_count > 0 else ''
+        latest_submissions.append('{}{}'.format(user, extra))
     return sorted(latest_submissions)
 
 
@@ -124,24 +126,26 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
     """Unpacks all files passed in as a list here"""
     if not os.path.isdir(work_dir):
         if not FORCE:
-            if not verify('Are you sure you want to create %s?' % work_dir):
+            if not verify('Are you sure you want to create {}?'
+                          .format(work_dir)):
                 exit_error('Aborted')
         os.mkdir(work_dir)
 
     for submit in submit_list:
-        print 'Unpacking: %s' % submit
+        print('Unpacking: {}'.format(submit))
         extract_dir = os.path.join(work_dir, submit)
-        compressed = os.path.join(proj_dir, '%s.%s' % (submit, extension))
+        compressed = os.path.join(proj_dir, '{}.{}'
+                                  .format(submit, extension))
         if os.path.isdir(extract_dir):
             if not FORCE:
-                if not verify('Are you sure you want to overwrite %s?' %
-                              extract_dir):
+                if not verify('Are you sure you want to overwrite {}?'
+                              .format(extract_dir)):
                     continue
         else:
             os.mkdir(extract_dir)
         extract_log = os.path.join(extract_dir, 'extract_log')
-        os.system('tar -xvzf %s -C %s > %s' % (compressed, extract_dir,
-                                               extract_log))
+        os.system('tar -xvzf {} -C {} > {}'.format(compressed, extract_dir,
+                                                   extract_log))
 
 
 def make(work_dir, make_dir, makefile, target, submit_list):
@@ -149,19 +153,19 @@ def make(work_dir, make_dir, makefile, target, submit_list):
         exit_error('work_dir does not exist. Extract first')
 
     """Runs make for each submission"""
-    makefile = '-f %s' % makefile if makefile else ''
-    target = '' if not target else target
-    make_cmd = 'make %s -C %%s %s > %%s' % (makefile, target)
+    makefile = '-f {}'.format(makefile) if makefile else ''
+    target = target if target else ''
+    make_cmd = 'make {} -C {{}} {} > {{}}'.format(makefile, target)
 
     for submit in submit_list:
-        print 'Making: %s' % submit
+        print('Making: {}'.format(submit))
         submit_dir = os.path.join(work_dir, submit, make_dir)
         make_log = os.path.join(work_dir, submit, 'make_log')
 
         if not os.path.isdir(submit_dir):
-            print 'Cannot build: submit_dir does not exist'
+            print('Cannot build: submit_dir does not exist')
         else:
-            os.system(make_cmd % (submit_dir, make_log))
+            os.system(make_cmd.format(submit_dir, make_log))
 
 
 def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
@@ -196,18 +200,16 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
     for submit in submit_list:
         user_grade = os.path.join(work_dir, submit, 'GRADE')
         if not os.path.isfile(user_grade):
-            print 'No GRADE file for %s' % submit
+            print('No GRADE file for {}'.format(submit))
             continue
         grade = open(user_grade).read().strip()
 
         user_email = append_at_cs(user_re.match(submit).group(1))
         to_list = [user_email] + bcc
 
-        to = 'To: %s' % user_email
-        subject = 'Subject: %s Grade' % os.path.basename(proj_dir)
-        msg = '%s\n%s\n\n%s\n\n%s' % (to, subject, grade, generic_grade)
+        msg = 'To: {}\nSubject: {} Grade\n\n{}\n\n{}'.format(
+            user_email, os.path.basename(proj_dir), grade, generic_grade)
         smtp.sendmail(from_email, to_list, msg)
-
     smtp.quit()
 
 
@@ -224,14 +226,15 @@ def purge_files(work_dir, submit_list):
     for user in submit_list:
         user_dir = os.path.join(work_dir, user)
         if os.path.isdir(user_dir):
-            print 'Deleting: %s' % user
-            os.system('rm -rf %s' % os.path.join(work_dir, user))
+            print('Deleting: {}'.format(user))
+            os.system('rm -rf {}'.format(os.path.join(work_dir, user)))
         else:
-            warning('%s does not exist' % user_dir)
+            warning('{} does not exist'.format(user_dir))
 
     if not os.listdir(work_dir):
         if not FORCE:
-            if not verify('%s is empty. Do you want to delete?' % work_dir):
+            if not verify('{} is empty. Do you want to delete?'
+                          .format(work_dir)):
                 return
         os.rmdir(work_dir)
 
@@ -241,7 +244,7 @@ def run_test_function(work_dir, test_function, submit_list, args):
         exit_error('work_dir does not exist. Extract first')
 
     if test_function not in globals():
-        exit_error('Aborting: No function named %s' % test_function)
+        exit_error('Aborting: No function named {}'.format(test_function))
 
     for submit in submit_list:
         os.chdir(os.path.join(work_dir, submit))
@@ -288,7 +291,7 @@ possible.
 
 """
     parser = OptionParser(usage=usage, description=description,
-                          version='%%prog %s' % __version__)
+                          version='%prog {}'.format(__version__))
     parser.add_option('-l', '--list', action='store_true', default=False,
                       help='list found submissions (default: %default)')
     parser.add_option('-x', '--extract', action='store_true', default=False,
@@ -350,7 +353,7 @@ student's work-dir subfolder''')
     # Verify supplied paths
     proj_dir = os.path.join(os.getcwd(), args[0]).rstrip('/')
     if not os.path.isdir(proj_dir):
-        exit_error('%s does not exist' % proj_dir)
+        exit_error('{} does not exist'.format(proj_dir))
     elif not os.path.isfile(os.path.join(proj_dir, 'LOGFILE')):
         warning('proj_dir does not appear to be valid. Reason: No LOGFILE')
 
@@ -359,14 +362,14 @@ student's work-dir subfolder''')
 
     if options.list:
         for user in submit_list:
-            print user
+            print(user)
     if options.extract:
         extract_submissions(proj_dir, work_dir, options.extension, submit_list)
     if options.make:
         if options.makefile:
             makefile = os.path.join(os.getcwd(), options.makefile)
             if not os.path.isfile(makefile):
-                exit_error('Makefile (%s) does not exist' % makefile)
+                exit_error('Makefile ({}) does not exist'.format(makefile))
         else:
             warning('Using student supplied makefiles')
             makefile = None
