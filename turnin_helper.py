@@ -1,8 +1,13 @@
 #!/usr/bin/env python
-import os, re, smtplib, sys, csv, string, pwd
+import csv
+import os
+import pwd
+import re
+import smtplib
+import sys
 from optparse import OptionParser, OptionGroup
 
-VERSION = '0.1'
+__version__ = '0.2'
 DISPLAY_WARNINGS = True
 FORCE = False
 YES = ['yes', 'y', '1']
@@ -16,10 +21,10 @@ QUIT = ['quit', 'q']
    Last Update: 2009/01/28
 """
 
-#==== Custom Test Function
+
 def calci_test(args):
     """Custom test function for CS160 Proj0 Grading
-    
+
     When turnin_helper is invoked with the argument --test-function=calci_test
     this function is called once for each submission. Prior to the call to this
     function python changes directories to the base of the extracted files
@@ -46,31 +51,35 @@ def calci_test(args):
             continue
         stdout = 'stdout-%s' % test
         stderr = 'stderr-%s' % test
-        ret = os.system('calci/calci < %s > %s 2> %s' % (input, stdout, stderr))
-        if ret and not 'bad' in test:
+        ret = os.system('calci/calci < %s > %s 2> %s' %
+                        (input, stdout, stderr))
+        if ret and 'bad' not in test:
             print '\tFailed %s' % test
             last = open(stdout).readlines()[-1]
             print '\t\t %s' % last,
-        elif  not ret and 'bad' in test:
+        elif not ret and 'bad' in test:
             print '\tFailed %s' % test
         elif 'valid' in test:
             ret = os.system('dot -Tps %s > %s' % (stdout, '%s.ps' % test))
-            if ret: print ret
+            if ret:
+                print ret
         elif 'bad' in test:
             os.system('echo %s >> line_numbers' % stdout)
             os.system('tail -n 1 %s >> line_numbers' % stdout)
             os.remove(stdout)
         if os.path.getsize(stderr) == 0:
             os.remove(stderr)
-#=====
+
 
 def exit_error(msg):
     print msg
     sys.exit(1)
 
+
 def warning(msg):
     if DISPLAY_WARNINGS:
         sys.stderr.write('Warning: %s\n' % msg)
+
 
 def verify(msg):
     input = raw_input('%s ' % msg).lower()
@@ -79,9 +88,10 @@ def verify(msg):
     if input in QUIT:
         exit_error('Aborted')
 
+
 def get_latest_turnin_list(proj_dir, extension):
-    """Builds a list of all the most recent submissions"""
-    
+    """Builds a list of all the most recent submissions."""
+
     # Intentionally doesn't handle names with hyphens (-) followed by numbers
     submit_re = re.compile('([A-Za-z0-9_.]+([A-Za-z_.-]*))(-(\d)+)?.%s' %
                            extension)
@@ -96,7 +106,7 @@ def get_latest_turnin_list(proj_dir, extension):
             user, _, _, submit_count = submit_re.match(submission).groups()
         except AttributeError:
             sys.stderr.write('Warning: Failed to handle: %s\n' % submission)
-            
+
         submit_count = int(submit_count) if submit_count else 0
         if user in unique_users:
             unique_users[user] = max(unique_users[user], submit_count)
@@ -108,6 +118,7 @@ def get_latest_turnin_list(proj_dir, extension):
         extra = '-%d' % submit_count if submit_count > 0 else ''
         latest_submissions.append('%s%s' % (user, extra))
     return sorted(latest_submissions)
+
 
 def extract_submissions(proj_dir, work_dir, extension, submit_list):
     """Unpacks all files passed in as a list here"""
@@ -123,7 +134,7 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
         compressed = os.path.join(proj_dir, '%s.%s' % (submit, extension))
         if os.path.isdir(extract_dir):
             if not FORCE:
-                if not verify('Are you sure you want to overwrite %s?' % 
+                if not verify('Are you sure you want to overwrite %s?' %
                               extract_dir):
                     continue
         else:
@@ -131,6 +142,7 @@ def extract_submissions(proj_dir, work_dir, extension, submit_list):
         extract_log = os.path.join(extract_dir, 'extract_log')
         os.system('tar -xvzf %s -C %s > %s' % (compressed, extract_dir,
                                                extract_log))
+
 
 def make(work_dir, make_dir, makefile, target, submit_list):
     if not os.path.isdir(work_dir):
@@ -151,6 +163,7 @@ def make(work_dir, make_dir, makefile, target, submit_list):
         else:
             os.system(make_cmd % (submit_dir, make_log))
 
+
 def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
     def append_at_cs(email):
         if '@' not in email:
@@ -163,7 +176,7 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
         bcc = []
     for i in range(len(bcc)):
         bcc[i] = append_at_cs(bcc[i])
-   
+
     # Make connection
     smtp = smtplib.SMTP()
     smtp.connect('localhost')
@@ -186,16 +199,17 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
             print 'No GRADE file for %s' % submit
             continue
         grade = open(user_grade).read().strip()
-        
+
         user_email = append_at_cs(user_re.match(submit).group(1))
         to_list = [user_email] + bcc
-        
+
         to = 'To: %s' % user_email
         subject = 'Subject: %s Grade' % os.path.basename(proj_dir)
         msg = '%s\n%s\n\n%s\n\n%s' % (to, subject, grade, generic_grade)
         smtp.sendmail(from_email, to_list, msg)
-    
+
     smtp.quit()
+
 
 def purge_files(work_dir, submit_list):
     """Deletes directories with submit name in work_dir"""
@@ -205,7 +219,7 @@ def purge_files(work_dir, submit_list):
 
     if not FORCE:
         if not verify('Are you sure you want to delete user folders?'):
-            return  
+            return
 
     for user in submit_list:
         user_dir = os.path.join(work_dir, user)
@@ -221,26 +235,28 @@ def purge_files(work_dir, submit_list):
                 return
         os.rmdir(work_dir)
 
+
 def run_test_function(work_dir, test_function, submit_list, args):
     if not os.path.isdir(work_dir):
         exit_error('work_dir does not exist. Extract first')
 
-    if not test_function in globals():
+    if test_function not in globals():
         exit_error('Aborting: No function named %s' % test_function)
 
     for submit in submit_list:
         os.chdir(os.path.join(work_dir, submit))
         globals()[test_function](args)
 
+
 def generate_csv(proj_dir, work_dir, submit_list):
-    csv_filename = './{}.csv'.format(proj_dir.split('/')[-1]) 
+    csv_filename = './{}.csv'.format(proj_dir.split('/')[-1])
     if os.path.exists(csv_filename):
-        if not verify('''Are you sure you want to clobber the pre-existing \
-csv file?'''):
+        if not verify('Are you sure you want to clobber the pre-existing '
+                      'csv file?'):
             return
     with open(csv_filename, 'w') as csv_file:
-        writer = csv.writer(csv_file, delimiter=',', quotechar='"', 
-                quoting=csv.QUOTE_MINIMAL)
+        writer = csv.writer(csv_file, delimiter=',', quotechar='"',
+                            quoting=csv.QUOTE_MINIMAL)
         writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
         for item in submit_list:
             username = item if '-' not in item else item.split('-')[0]
@@ -248,9 +264,8 @@ csv file?'''):
             firstname = fullname.split()[0]
             lastname = fullname.split()[-1]
             grade_path = os.path.join(work_dir, item, 'GRADE')
-            if not os.path.isfile(grade_path):
-                grading=""
-            else:
+            grading = ''
+            if os.path.isfile(grade_path):
                 with open(grade_path) as grade_file:
                     grading = grade_file.read().strip()
             writer.writerow((firstname, lastname, username, grading))
@@ -273,7 +288,7 @@ possible.
 
 """
     parser = OptionParser(usage=usage, description=description,
-                          version='%%prog %s' % VERSION)
+                          version='%%prog %s' % __version__)
     parser.add_option('-l', '--list', action='store_true', default=False,
                       help='list found submissions (default: %default)')
     parser.add_option('-x', '--extract', action='store_true', default=False,
@@ -295,7 +310,7 @@ possible.
                       help=' '.join(['delete extracted user folders and their',
                                      'contents (default: %default)']))
     parser.add_option('--csv', action='store_true', default=False,
-                     help='''generate the file (turnin_helper_directory).csv \
+                      help='''generate the file (turnin_helper_directory).csv \
 in this program\'s directory containing the student\'s first name, last name, \
 csil username, and GRADE file contents. This refers to a GRADE file in each \
 student's work-dir subfolder''')
@@ -317,11 +332,10 @@ student's work-dir subfolder''')
     group.add_option('--extension', metavar='EXT', default='tar.Z',
                      help='extension of submitted files (default: %default)')
     group.add_option('-W', '--no-warn', action='store_true', default=False,
-                      help='suppress warning messages')
+                     help='suppress warning messages')
     group.add_option('-f', '--force', action='store_true', default=False,
                      help='answer yes to all verification questions')
     parser.add_option_group(group)
-
 
     # Run options parser and verify required command line arguments
     options, args = parser.parse_args()
