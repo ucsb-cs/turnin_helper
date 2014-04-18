@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, re, smtplib, sys, csv, string, subprocess
+import os, re, smtplib, sys, csv, string, pwd
 from optparse import OptionParser, OptionGroup
 
 VERSION = '0.1'
@@ -238,28 +238,22 @@ def generate_csv(proj_dir, work_dir, submit_list):
         if not verify('''Are you sure you want to clobber the pre-existing \
 csv file?'''):
             return
-    csv_file = open(csv_filename, 'w')
-    writer = csv.writer(csv_file, delimiter=',', quotechar='"', 
-            quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
-    for item in submit_list:
-        username = item if '-' not in item else item.split('-')[0]
-        if any(char for char in username if char not in string.letters +
-                string.digits):
-            #A security check here is important prior to the shell command
-            exit_error('Security check for alphanumeric usernames failed. \
-Exiting')
-        fullname = subprocess.Popen("getent passwd {} | cut -d ':' -f 5".format(
-            username), stdout=subprocess.PIPE, shell=True).stdout.read()
-        firstname = fullname.split()[0]
-        lastname = fullname.split()[-1]
-        grade_path = os.path.join(work_dir, username, 'GRADE')
-        if not os.path.isfile(grade_path):
-            grading=""
-        else:
-            grade = open(grade_path).read().strip()
-        writer.writerow((firstname, lastname, username, grading))
-    csv_file.close()
+    with open(csv_filename, 'w') as csv_file:
+        writer = csv.writer(csv_file, delimiter=',', quotechar='"', 
+                quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
+        for item in submit_list:
+            username = item if '-' not in item else item.split('-')[0]
+            fullname = pwd.getpwnam(username).pw_gecos
+            firstname = fullname.split()[0]
+            lastname = fullname.split()[-1]
+            grade_path = os.path.join(work_dir, item, 'GRADE')
+            if not os.path.isfile(grade_path):
+                grading=""
+            else:
+                with open(grade_path) as grade_file:
+                    grading = grade_file.read().strip()
+            writer.writerow((firstname, lastname, username, grading))
 
 
 if __name__ == '__main__':
