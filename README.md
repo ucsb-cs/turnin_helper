@@ -55,7 +55,45 @@ names, last names, usernames, and GRADE file contents. GRADE files are
 described later in this document.
 
 
-## Batch emailing students their grades
+# Creating and running test cases
+
+Via the `--test-function` argument a test function can be run on each of the
+submissions. These test functions must be written by you, but a sample test
+function, `sample_test_function`, is provided as a model.
+
+`sample_test_function` is intended to work with the `SAMPLE_PROJ` project. For
+each student's most recent project (there is only 1 student in the example) the
+function checks for the binary that should have been produced by Make. If it
+exists the student is awarded 1 point, otherwise 0. The student-specific GRADE
+file is autoamtically produced.
+
+### Extracting, making, and running the test for failure
+
+We can invoke the failure case by providing a make target that does not exist:
+
+    ./turnin_helper.py -xm  --target foo --test-function=sample_test_function SAMPLE_PROJ
+
+After running the above the contents of `bboe-1/GRADE` will be:
+
+    SCORE: 0
+
+The contents of `bboe-1/make_log` will indicate why Make did not succeed:
+
+    make: *** No rule to make target `foo'.  Stop.
+
+### Extracting, making and running the test for success
+
+    ./turnin_helper.py -xm  --test-function=sample_test_function SAMPLE_PROJ
+
+After running the above the contents of `bboe-1/GRADE` will be:
+
+    SCORE: 1
+
+You can alter this function or write you own to perform a variety of different
+tests.
+
+
+# Batch emailing students their grades
 
 Once a project has been extracted a grade emails can be sent to all the
 students in one simple proceedure. There are a couple of features here:
