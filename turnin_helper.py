@@ -298,23 +298,21 @@ possible.
     parser.add_option('-l', '--list', action='store_true', default=False,
                       help='list found submissions (default: %default)')
     parser.add_option('-x', '--extract', action='store_true', default=False,
-                      help=' '.join(['extract students\' most recent',
-                                     'submission (default: %default)']))
+                      help=('extract students\' most recent submission '
+                            '(default: %default)'))
     parser.add_option('-m', '--make', action='store_true', default=False,
                       help='run make for each user (default: %default)')
     parser.add_option('--email', metavar='FROM', default=False,
-                      help=' '.join(['email grades to students. The email is',
-                                     'constructed from a GRADE file in each',
-                                     'student\'s work-dir subfolder, plus a',
-                                     'generic grade file in the root of the',
-                                     'working directory.']))
+                      help=('email grades to students. The email is '
+                            'constructed from a GRADE file in each student\'s '
+                            'work-dir subfolder, plus a generic grade file in '
+                            'the root of the working directory.'))
     parser.add_option('--test-function', metavar='FUNC',
-                      help=' '.join(['if specified, this is a python function',
-                                     'to call from the directory created for',
-                                     'each submission']))
+                      help=('if specified, this is a python function to call '
+                            'from the directory created for each submission'))
     parser.add_option('--purge', action='store_true', default=False,
-                      help=' '.join(['delete extracted user folders and their',
-                                     'contents (default: %default)']))
+                      help=('delete extracted user folders and their contents '
+                            '(default: %default)'))
     parser.add_option('--csv', action='store_true', default=False,
                       help='''generate the file (turnin_helper_directory).csv \
 in this program\'s directory containing the student\'s first name, last name, \
@@ -325,12 +323,12 @@ student's work-dir subfolder''')
     group.add_option('--work-dir', metavar='DIR', default='.',
                      help='directory to perform work in (default: %default)')
     group.add_option('--make-dir', metavar='DIR', default='.',
-                     help=' '.join(['directory within submission to run make',
-                                    '(default: %default)']))
+                     help=('directory within submission to run make (default: '
+                           '%default)'))
     group.add_option('--makefile', metavar='FILE',
-                     help=' '.join(['relative or absolute path to the',
-                                    'makefile to use with make (default:'
-                                    'student\'s submitted makefile)']))
+                     help=('relative or absolute path to the makefile to use '
+                           'with make (default: student\'s submitted '
+                           'makefile)'))
     group.add_option('--target', metavar='TARGET',
                      help='make target to call')
     group.add_option('--bcc', metavar='EMAIL', action='append',
