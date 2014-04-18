@@ -2,6 +2,10 @@
 Example Usage
 ------------------------------------------------
 
+Note that for each of these examples, SAMPLE_PROJ is the folder where the
+student submissions are tarballed to. working is the directory selected for
+the submissions to be extracted to.
+
 See help information:
 ./turnin_helper.py --help
 
@@ -33,6 +37,11 @@ Clean up (delete) project(s) in "working" directory
 
 Extract and run `make clean` on sample project(s) in "working" directory
 ./turnin_helper.py -m SAMPLE_PROJ --work-dir=working --target=clean
+
+Generate a spreadsheet named SAMPLE_PROJ.csv with columns for student first 
+names, last names, usernames, and GRADE file contents. GRADE files are
+described later in this document.
+./turnin_helper.py --csv SAMPLE_PROJ --work-dir=working
 
 
 ------------------------------------------------
