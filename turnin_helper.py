@@ -56,7 +56,8 @@ def calci_test(args):
                         .format(test_input, stdout, stderr))
         if ret and 'bad' not in test:
             print('\tFailed {}'.format(test))
-            last = open(stdout).readlines()[-1]
+            with open(stdout) as fp:
+                last = fp.readlines()[-1]
             sys.stdout.write('\t\t {}'.format(last))
         elif not ret and 'bad' in test:
             print('\tFailed {}'.format(test))
@@ -190,11 +191,12 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
     generic = os.path.join(work_dir, 'GRADE')
     if not os.path.isfile(generic):
         if not FORCE:
-            if not verify(' '.join(['There is no generic GRADE file, are you',
-                                    'sure you want to send emails?'])):
+            if not verify('There is no generic GRADE file, are you '
+                          'sure you want to send emails?'):
                 return
     else:
-        generic_grade = open(generic).read().strip()
+        with open(generic) as fp:
+            generic_grade = fp.read().strip()
 
     user_re = re.compile('(\w+)(-(\d)+)?')
     for submit in submit_list:
@@ -202,7 +204,8 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
         if not os.path.isfile(user_grade):
             print('No GRADE file for {}'.format(submit))
             continue
-        grade = open(user_grade).read().strip()
+        with open(user_grade) as fp:
+            grade = fp.read().strip()
 
         user_email = append_at_cs(user_re.match(submit).group(1))
         to_list = [user_email] + bcc
@@ -269,8 +272,8 @@ def generate_csv(proj_dir, work_dir, submit_list):
             grade_path = os.path.join(work_dir, item, 'GRADE')
             grading = ''
             if os.path.isfile(grade_path):
-                with open(grade_path) as grade_file:
-                    grading = grade_file.read().strip()
+                with open(grade_path) as fp:
+                    grading = fp.read().strip()
             writer.writerow((firstname, lastname, username, grading))
 
 
