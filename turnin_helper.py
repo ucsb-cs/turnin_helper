@@ -11,8 +11,9 @@ from optparse import OptionParser, OptionGroup
 __version__ = '0.2'
 DISPLAY_WARNINGS = True
 FORCE = False
-YES = ['yes', 'y', '1']
 QUIT = ['quit', 'q']
+USER_RE = re.compile('(\w+)(-(\d)+)?')
+YES = ['yes', 'y', '1']
 
 
 """Grading Script for automatically unpacking the newest turnins
@@ -198,7 +199,6 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
         with open(generic) as fp:
             generic_grade = fp.read().strip()
 
-    user_re = re.compile('(\w+)(-(\d)+)?')
     for submit in submit_list:
         user_grade = os.path.join(work_dir, submit, 'GRADE')
         if not os.path.isfile(user_grade):
@@ -207,7 +207,7 @@ def email_grades(proj_dir, work_dir, from_email, bcc, submit_list):
         with open(user_grade) as fp:
             grade = fp.read().strip()
 
-        user_email = append_at_cs(user_re.match(submit).group(1))
+        user_email = append_at_cs(USER_RE.match(submit).group(1))
         to_list = [user_email] + bcc
 
         msg = 'To: {}\nSubject: {} Grade\n\n{}\n\n{}'.format(
@@ -223,7 +223,7 @@ def purge_files(work_dir, submit_list):
         return
 
     if not FORCE:
-        if not verify('Are you sure you want to delete user folders?'):
+        if not verify('Are you sure you want to delete user directories?'):
             return
 
     for user in submit_list:
@@ -255,7 +255,8 @@ def run_test_function(work_dir, test_function, submit_list, args):
 
 
 def generate_csv(proj_dir, work_dir, submit_list):
-    csv_filename = './{}.csv'.format(proj_dir.split('/')[-1])
+    csv_filename = os.path.join(work_dir,
+                                '{}.csv'.format(os.path.basename(proj_dir)))
     if os.path.exists(csv_filename):
         if not verify('Are you sure you want to clobber the pre-existing '
                       'csv file?'):
@@ -265,10 +266,11 @@ def generate_csv(proj_dir, work_dir, submit_list):
                             quoting=csv.QUOTE_MINIMAL)
         writer.writerow(('Firstname', 'Lastname', 'Username', 'Grading'))
         for item in submit_list:
-            username = item if '-' not in item else item.split('-')[0]
-            fullname = pwd.getpwnam(username).pw_gecos
-            firstname = fullname.split()[0]
-            lastname = fullname.split()[-1]
+            username = USER_RE.match(item).group(1)
+            name_parts = pwd.getpwnam(username).pw_gecos.split()
+            # Assume single-word lastnames
+            firstname = ' '.join(name_parts[:-1])
+            lastname = name_parts[-1]
             grade_path = os.path.join(work_dir, item, 'GRADE')
             grading = ''
             if os.path.isfile(grade_path):
@@ -279,7 +281,7 @@ def generate_csv(proj_dir, work_dir, submit_list):
 
 if __name__ == '__main__':
     # Setup and configure options parser
-    usage = 'Usage: %prog [options] proj_dir'
+    usage = 'Usage: %prog [options] PROJ_DIR'
     description = """\
 In attempt to save himself time (or so he thought) Bryce Boe embarked on a
 journey of semi-great proportions. It started with a simple python file to
@@ -302,22 +304,22 @@ possible.
                             '(default: %default)'))
     parser.add_option('-m', '--make', action='store_true', default=False,
                       help='run make for each user (default: %default)')
+    parser.add_option('-c', '--csv', action='store_true', default=False,
+                      help=('generate a csv file PROJ_DIR.csv in the working '
+                            'directory containing the student\'s first name, '
+                            'last name, csil username, and GRADE file '
+                            'contents.'))
     parser.add_option('--email', metavar='FROM', default=False,
-                      help=('email grades to students. The email is '
+                      help=('email grades to students from FROM. The email is '
                             'constructed from a GRADE file in each student\'s '
-                            'work-dir subfolder, plus a generic grade file in '
-                            'the root of the working directory.'))
+                            'working subdirectory, plus a generic grade file '
+                            'in the root of the working directory.'))
+    parser.add_option('--purge', action='store_true', default=False,
+                      help=('delete extracted user directories and their '
+                            'contents (default: %default)'))
     parser.add_option('--test-function', metavar='FUNC',
                       help=('if specified, this is a python function to call '
                             'from the directory created for each submission'))
-    parser.add_option('--purge', action='store_true', default=False,
-                      help=('delete extracted user folders and their contents '
-                            '(default: %default)'))
-    parser.add_option('--csv', action='store_true', default=False,
-                      help='''generate the file (turnin_helper_directory).csv \
-in this program\'s directory containing the student\'s first name, last name, \
-csil username, and GRADE file contents. This refers to a GRADE file in each \
-student's work-dir subfolder''')
 
     group = OptionGroup(parser, 'Configuration Options')
     group.add_option('--work-dir', metavar='DIR', default='.',
