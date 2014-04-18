@@ -263,21 +263,7 @@ def generate_csv(proj_dir, work_dir, submit_list):
 if __name__ == '__main__':
     # Setup and configure options parser
     usage = 'Usage: %prog [options] PROJ_DIR'
-    description = """\
-In attempt to save himself time (or so he thought) Bryce Boe embarked on a
-journey of semi-great proportions. It started with a simple python file to
-extract the newest submission of each student after a project deadline. Soon
-later the journey was extended to run make in each of these extracted
-directories. Pushing through fatigue, Bryce's journey continued with the
-auto execution of certain commands. Upon realizing that more time was probably
-spent on this journey rather than the actual grading of the programs Bryce
-decided to make it all worthwhile. The journey again was extended to allow for
-confirmation of actions and of course making the script as portable as
-possible.
-
-"""
-    parser = OptionParser(usage=usage, description=description,
-                          version='%prog {}'.format(__version__))
+    parser = OptionParser(usage=usage, version='%prog {}'.format(__version__))
     parser.add_option('-l', '--list', action='store_true', default=False,
                       help='list found submissions (default: %default)')
     parser.add_option('-x', '--extract', action='store_true', default=False,
