@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, re, smtplib, sys
+import os, re, smtplib, sys, csv, pwd
 from optparse import OptionParser, OptionGroup
 
 VERSION = '0.1'
@@ -232,6 +232,21 @@ def run_test_function(work_dir, test_function, submit_list, args):
         os.chdir(os.path.join(work_dir, submit))
         globals()[test_function](args)
 
+def generate_csv(proj_dir, work_dir, submit_list):
+    csv_filename = "./{}.csv".format(proj_dir.split("/"[-1])) 
+    writer = csv.writer(csv_filename, delimiter=",", quotechar='"', 
+            quoting=csv.QUOTE_MINIMAL)
+    for username in submit_list:
+        fullname = pwd.getpwnam(user).pw_gecos
+        firstname = fullname.split()[0]
+        lastname = fullname.split()[-1]
+        grade_path = os.path.join(work_dir, submit, 'GRADE')
+        if not os.path.isfile(grade_filepath):
+            print 'No GRADE file for %s' % submit
+            continue
+        grade = open(grade_path).read().strip()
+        grade = 
+
 
 if __name__ == '__main__':
     # Setup and configure options parser
@@ -261,16 +276,21 @@ possible.
     parser.add_option('--email', metavar='FROM', default=False,
                       help=' '.join(['email grades to students. The email is',
                                      'constructed from a GRADE file in each',
-                                     'student\'s extract folder, plus a',
+                                     'student\'s work-dir subfolder, plus a',
                                      'generic grade file in the root of the',
                                      'working directory.']))
     parser.add_option('--test-function', metavar='FUNC',
-                      help=' '.join(['if specified this is a python function',
+                      help=' '.join(['if specified, this is a python function',
                                      'to call from the directory created for',
                                      'each submission']))
     parser.add_option('--purge', action='store_true', default=False,
                       help=' '.join(['delete extracted user folders and their',
                                      'contents (default: %default)']))
+    parser.add_option('--csv', action='store_true', default=False,
+                     help='''generate the file (turnin_helper_directory).csv \
+in this program\'s directory containing the student\'s first name, last name, \
+csil username, and GRADE file contents. This refers to a GRADE file in each \
+student's work-dir subfolder''')
 
     group = OptionGroup(parser, 'Configuration Options')
     group.add_option('--work-dir', metavar='DIR', default='.',
@@ -337,3 +357,5 @@ possible.
     if options.test_function:
         run_test_function(work_dir, options.test_function, submit_list,
                           args[1:])
+    if options.csv:
+        generate_csg(proj_dir, work_dir, submit_list)
