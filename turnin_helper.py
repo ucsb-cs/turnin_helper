@@ -325,6 +325,8 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
     if len(args) == 0:
         parser.error('Must provide turnin_directory')
+    if len(args) >= 2:
+        parser.error('This application is not designed to work with multiple turnin_directory paths')
 
     if options.no_warn:
         DISPLAY_WARNINGS = False
