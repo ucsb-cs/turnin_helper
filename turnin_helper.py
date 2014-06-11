@@ -26,7 +26,7 @@ FORCE = False
 USER_RE = re.compile('(\w+)(-(\d)+)?')
 
 
-def sample_test_function(args):
+def sample_test_function():
     """A sample test function that creates a the student-specific grade file.
 
     When turnin_helper is invoked with the argument
@@ -223,7 +223,7 @@ def purge_files(work_dir, submit_list):
         os.rmdir(work_dir)
 
 
-def run_test_function(work_dir, test_function, submit_list, args):
+def run_test_function(work_dir, test_function, submit_list):
     """Execute test_function for each submission in submit_list.
 
     Change into the submission directory for each submission before the call.
@@ -239,7 +239,7 @@ def run_test_function(work_dir, test_function, submit_list, args):
     for submit in submit_list:
         print('Testing {}'.format(submit))
         os.chdir(os.path.join(work_dir, submit))
-        globals()[test_function](args)
+        globals()[test_function]()
     os.chdir(old_pwd)
 
 
@@ -323,10 +323,8 @@ if __name__ == '__main__':
 
     # Run options parser and verify required command line arguments
     options, args = parser.parse_args()
-    if len(args) == 0:
-        parser.error('Must provide turnin_directory')
-    if len(args) >= 2:
-        parser.error('This application is not designed to work with multiple turnin_directory paths')
+    if len(args) != 1:
+        parser.error('Must provide exactly one turnin_directory')
 
     if options.no_warn:
         DISPLAY_WARNINGS = False
@@ -360,8 +358,7 @@ if __name__ == '__main__':
             makefile = None
         make(work_dir, options.make_dir, makefile, options.target, submit_list)
     if options.test_function:
-        run_test_function(work_dir, options.test_function, submit_list,
-                          args[1:])
+        run_test_function(work_dir, options.test_function, submit_list)
     if options.email:
         email_grades(proj_dir, work_dir, options.email, options.bcc,
                      submit_list)
